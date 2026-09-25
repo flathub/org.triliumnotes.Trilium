@@ -36,74 +36,50 @@ modules:
     buildsystem: simple
     build-options:
       # pnpm first because apps/desktop/scripts/build.ts needs `pnpm build`.
-      append-path: /run/build/trilium/flatpak-node/pnpm/bin:/usr/lib/sdk/node24/bin
+      append-path: /run/build/trilium/flatpak-node/pnpm:/usr/lib/sdk/node24/bin
       env:
         XDG_CACHE_HOME: /run/build/trilium/flatpak-node/cache
     build-commands:
-      - chmod +x flatpak-node/pnpm/bin/pnpm.cjs
-      - ln -s pnpm.cjs flatpak-node/pnpm/bin/pnpm      
       - pnpm install --offline --frozen-lockfile --reporter=append-only
 
-      - node --experimental-strip-types stamp-build-info.mts
+      - pnpm chore:update-build-info --from-commit
       - pnpm desktop:build
 
       - install -d /app/lib/trilium
       - cp -a apps/desktop/dist/. /app/lib/trilium/
-      
+
       # Electron downloads its binary lazily on first use, which an offline sandbox cannot allow.
       # Unpack the cached zip instead.
       - unzip -q flatpak-node/cache/electron/electron-v*-linux-*.zip -d /app/lib/electron
       - mv /app/lib/electron/electron /app/lib/electron/trilium
       - rm /app/lib/electron/chrome-sandbox
 
-      - node --experimental-strip-types flip-fuses.mts
-      - node --experimental-strip-types trim-locales.mts
+      - pnpm exec tsx apps/desktop/electron-forge/flip-fuses.ts /app/lib/electron/trilium
+      - pnpm exec tsx apps/desktop/electron-forge/trim-locales.ts /app/lib/electron/locales
 
       - install -Dm755 trilium.sh /app/bin/trilium
+      - install -Dm644 apps/desktop/flatpak/${FLATPAK_ID}.desktop /app/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 apps/desktop/flatpak/${FLATPAK_ID}.metainfo.xml /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
       - for s in 128 256 512; do install -Dm644 "apps/desktop/electron-forge/app-icon/png/${s}x${s}.png"
         "/app/share/icons/hicolor/${s}x${s}/apps/${FLATPAK_ID}.png"; done
     sources:
       - type: git
         url: https://github.com/TriliumNext/Trilium.git
-        tag: v0.105.0
-        commit: a0908a6e1e1741a3c3824d803da07300183dcb0c
+        tag: v0.106.0
+        commit: c0fdceba3b59af8a4473c6944b4f176121bb9788
       - generated-sources.json
+      # pnpm 12 ships as a native binary per platform; the wrapper package's
+      # postinstall, which an offline sandbox cannot run, is what would pick one.
       - type: archive
-        url: https://registry.npmjs.org/pnpm/-/pnpm-11.22.0.tgz
-        sha256: 57a97e6f23a3faffc03153a4ef8c770a0552612b8640aebe39bfdd5754d0ebdc
+        url: https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.5.1.tgz
+        sha256: c980bc463e4b1dcd34ab136c738d987dd21a5590f4b4b82dc2c8ad3e605e2f7f
         dest: flatpak-node/pnpm
+        only-arches: [x86_64]
+      - type: archive
+        url: https://registry.npmjs.org/@pnpm/exe.linux-arm64/-/exe.linux-arm64-12.5.1.tgz
+        sha256: d6b8b296256372cdbd02be78b7e19b8387de252abcf920017987660b76c429e8
+        dest: flatpak-node/pnpm
+        only-arches: [aarch64]
+      # The launch wrapper stays a repo file, reviewable without opening the checkout.
       - type: file
-        path: flip-fuses.mts
-      - type: file
-        path: stamp-build-info.mts
-      - type: file
-        path: trim-locales.mts
-      - type: script
-        dest-filename: trilium.sh
-        commands:
-          # Use built-in directory, unless the user has already overridden or mounted their data directory.
-          - |
-            if [ -z "${TRILIUM_DATA_DIR:-}" ]; then
-                if [ ! -d "$XDG_DATA_HOME/trilium-data" ] && [ -d "$HOME/.local/share/trilium-data" ]; then
-                    export TRILIUM_DATA_DIR="$HOME/.local/share/trilium-data"
-                else
-                    export TRILIUM_DATA_DIR="$XDG_DATA_HOME/trilium-data"
-                fi
-            fi
-          - exec zypak-wrapper /app/lib/electron/trilium /app/lib/trilium "$@"
-
-  # Separate module so a metadata edit does not invalidate app build.
-  - name: metadata
-    buildsystem: simple
-    build-commands:
-      - install -Dm644 ${FLATPAK_ID}.desktop /app/share/applications/${FLATPAK_ID}.desktop
-      - install -Dm644 ${FLATPAK_ID}.metainfo.xml /app/share/metainfo/${FLATPAK_ID}.metainfo.xml
-    sources:
-      - type: file
-        dest-filename: org.triliumnotes.Trilium.desktop
-        url: https://raw.githubusercontent.com/TriliumNext/Trilium/e87e0bbcb1ebeefa18374dbbd3ef3ec0e3cd501b/apps/desktop/flatpak/org.triliumnotes.Trilium.desktop
-        sha256: 889a8af67c16e23a019eb8126f5a358403394574b8eb3bcc9c6a47540b7db8ae
-      - type: file
-        dest-filename: org.triliumnotes.Trilium.metainfo.xml
-        url: https://raw.githubusercontent.com/TriliumNext/Trilium/e87e0bbcb1ebeefa18374dbbd3ef3ec0e3cd501b/apps/desktop/flatpak/org.triliumnotes.Trilium.metainfo.xml
-        sha256: 1ee40ba6439dfc3ac8675ba3ad37892f0db7d033ba2b8f17f2e1870ddccac087
+        path: trilium.sh
