@@ -65,19 +65,18 @@ modules:
     sources:
       - type: git
         url: https://github.com/TriliumNext/Trilium.git
-        tag: v0.106.0
-        commit: c0fdceba3b59af8a4473c6944b4f176121bb9788
+        commit: 23dd83a8c732402117b7a0cf3be77de17230c150
       - generated-sources.json
       # pnpm 12 ships as a native binary per platform; the wrapper package's
       # postinstall, which an offline sandbox cannot run, is what would pick one.
       - type: archive
-        url: https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.5.1.tgz
-        sha256: c980bc463e4b1dcd34ab136c738d987dd21a5590f4b4b82dc2c8ad3e605e2f7f
+        url: https://registry.npmjs.org/@pnpm/exe.linux-x64/-/exe.linux-x64-12.18.0.tgz
+        sha256: 679df2eedf158f639db6d1f00e713d766d0d7afc6a931bc51497a625d1e1bdf7
         dest: flatpak-node/pnpm
         only-arches: [x86_64]
       - type: archive
-        url: https://registry.npmjs.org/@pnpm/exe.linux-arm64/-/exe.linux-arm64-12.5.1.tgz
-        sha256: d6b8b296256372cdbd02be78b7e19b8387de252abcf920017987660b76c429e8
+        url: https://registry.npmjs.org/@pnpm/exe.linux-arm64/-/exe.linux-arm64-12.18.0.tgz
+        sha256: 2e326930b9b670712df1c93849d725c85f6b897cdf9239ee724b587c50ddd5bc
         dest: flatpak-node/pnpm
         only-arches: [aarch64]
       # The launch wrapper stays a repo file, reviewable without opening the checkout.
